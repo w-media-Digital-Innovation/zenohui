@@ -115,7 +115,7 @@ export ZENOHUI_LISTEN=tcp/0.0.0.0:7447
 export ZENOHUI_MODE=peer
 ```
 
-## Install
+## (WIP!) Install
 
 There are generally 3 ways to install `zenohui`, in the order of preference: From your [package manager](#packaged), [prebuilt](#prebuilt) or [from source](#from-source)
 
