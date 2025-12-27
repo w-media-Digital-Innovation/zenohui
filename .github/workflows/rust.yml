@@ -128,7 +128,7 @@ jobs:
           echo "version: $version"
           echo "GIT_TAG_VERSION=$version" >> $GITHUB_ENV
 
-          name="mqttui-$version-${{ matrix.triple }}"
+          name="zenohui-$version-${{ matrix.triple }}"
           echo "artifact: $name"
           echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
 
@@ -147,7 +147,7 @@ jobs:
           CHANGELOG.md LICENSE README.md
           -C target/ completions/ -C ../
           -C target/ manpages/ -C ../
-          -C target/${{ matrix.triple }}/release/ mqttui
+          -C target/${{ matrix.triple }}/release/ zenohui
           | gzip --best > ${{ env.ARTIFACT_NAME }}.tar.gz
       - name: Package zip (Windows)
         if: runner.os == 'Windows'
@@ -156,7 +156,7 @@ jobs:
           CHANGELOG.md LICENSE README.md
           ./target/completions/
           ./target/manpages/
-          ./target/${{ matrix.triple }}/release/mqttui.exe
+          ./target/${{ matrix.triple }}/release/zenohui.exe
       - name: Package deb
         if: runner.os == 'Linux'
         run: cargo deb --no-build --no-strip --target ${{ matrix.triple }} --output ${{ env.ARTIFACT_NAME }}.deb
