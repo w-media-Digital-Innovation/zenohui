@@ -1,8 +1,8 @@
-use rumqttc::QoS;
+use zenoh::sample::SampleKind;
 
 pub struct HistoryEntry {
-    pub qos: QoS,
-    pub time: crate::mqtt::Time,
+    pub kind: SampleKind,
+    pub time: crate::zenoh_client::Time,
     pub payload_size: usize,
     pub payload: crate::payload::Payload,
 }

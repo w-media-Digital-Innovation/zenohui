@@ -1,60 +1,33 @@
-use std::time::Duration;
+use std::sync::Arc;
 
 use clap::Parser;
-use cli::Subcommands;
-use rumqttc::QoS;
 
-mod clean_retained;
+mod clean;
 mod cli;
 mod format;
 mod interactive;
 mod log;
-mod mqtt;
 mod payload;
 mod publish;
 mod read_one;
+mod zenoh_client;
 
 fn main() -> anyhow::Result<()> {
     let matches = cli::Cli::parse();
-
-    let keep_alive = if let Some(Subcommands::CleanRetained { timeout, .. }) = matches.subcommands {
-        Some(Duration::from_secs_f32(timeout))
-    } else {
-        None
-    };
-    let (broker, client, connection) = mqtt::connect(matches.mqtt_connection, keep_alive)?;
+    let (session_info, session) = zenoh_client::connect(matches.zenoh_connection)?;
+    let session = Arc::new(session);
 
     match matches.subcommands {
-        Some(Subcommands::CleanRetained { topic, dry_run, .. }) => {
-            client.subscribe(topic, QoS::AtLeastOnce)?;
-            clean_retained::clean_retained(&client, connection, dry_run);
+        Some(cli::Subcommands::Clean { keyexpr, dry_run }) => {
+            clean::clean(session.as_ref(), &keyexpr, dry_run)?;
         }
-        Some(Subcommands::Log {
-            topic,
-            json,
-            verbose,
-        }) => {
-            for topic in topic {
-                client.subscribe(topic, QoS::AtLeastOnce)?;
-            }
-            log::show(connection, json, verbose);
+        Some(cli::Subcommands::Log { keyexpr, json }) => {
+            log::show(Arc::clone(&session), keyexpr, json)?;
         }
-        Some(Subcommands::ReadOne {
-            topic,
-            ignore_retained,
-            pretty,
-        }) => {
-            for topic in topic {
-                client.subscribe(topic, QoS::AtLeastOnce)?;
-            }
-            read_one::show(&client, connection, ignore_retained, pretty);
+        Some(cli::Subcommands::ReadOne { keyexpr, pretty }) => {
+            read_one::show(Arc::clone(&session), keyexpr, pretty)?;
         }
-        Some(Subcommands::Publish {
-            topic,
-            payload,
-            retain,
-            verbose,
-        }) => {
+        Some(cli::Subcommands::Publish { keyexpr, payload }) => {
             let payload = payload.map_or_else(
                 || {
                     use std::io::Read;
@@ -66,18 +39,15 @@ fn main() -> anyhow::Result<()> {
                 },
                 String::into_bytes,
             );
-            client.publish(topic, QoS::AtLeastOnce, retain, payload)?;
-            publish::eventloop(&client, connection, verbose);
+            publish::send(session.as_ref(), &keyexpr, payload)?;
         }
         None => {
             interactive::show(
-                client.clone(),
-                connection,
-                &broker,
-                matches.topic,
+                Arc::clone(&session),
+                &session_info,
+                matches.keyexpr,
                 matches.payload_size_limit,
             )?;
-            client.disconnect()?;
         }
     }
 

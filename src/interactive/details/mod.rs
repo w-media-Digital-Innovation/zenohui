@@ -3,7 +3,7 @@ use ratatui::Frame;
 use ratatui_logline_table::State as TableState;
 
 use crate::interactive::ui::{split_area_vertically, ElementInFocus};
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 
 mod graph;
 mod payload_view;

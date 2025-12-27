@@ -8,18 +8,20 @@ use ratatui::layout::{Alignment, Position, Rect};
 use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::{Frame, Terminal};
-use rumqttc::{Client, Connection};
+use std::sync::Arc;
+
+use zenoh::Session;
 
 use self::ui::ElementInFocus;
-use crate::cli::Broker;
+use crate::zenoh_client::SessionInfo;
 use crate::payload::Payload;
 
-mod clean_retained;
+mod clean;
 mod details;
 mod footer;
-mod mqtt_error_widget;
-mod mqtt_history;
-mod mqtt_thread;
+mod connection_error_widget;
+mod zenoh_history;
+mod zenoh_thread;
 mod topic_overview;
 mod ui;
 
@@ -57,15 +59,14 @@ fn reset_terminal() -> anyhow::Result<()> {
 }
 
 pub fn show(
-    client: Client,
-    connection: Connection,
-    broker: &Broker,
-    subscribe_topic: Vec<String>,
+    session: Arc<Session>,
+    session_info: &SessionInfo,
+    subscribe_keyexpr: Vec<String>,
     payload_size_limit: usize,
 ) -> anyhow::Result<()> {
-    let mqtt_thread =
-        mqtt_thread::MqttThread::new(client, connection, subscribe_topic, payload_size_limit)?;
-    let app = App::new(broker, mqtt_thread);
+    let zenoh_thread =
+        zenoh_thread::ZenohThread::new(session, subscribe_keyexpr, payload_size_limit)?;
+    let app = App::new(session_info, zenoh_thread);
 
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
@@ -148,17 +149,17 @@ pub struct App {
     details: details::Details,
     focus: ElementInFocus,
     footer: footer::Footer,
-    mqtt_thread: mqtt_thread::MqttThread,
+    zenoh_thread: zenoh_thread::ZenohThread,
     topic_overview: topic_overview::TopicOverview,
 }
 
 impl App {
-    fn new(broker: &Broker, mqtt_thread: mqtt_thread::MqttThread) -> Self {
+    fn new(session_info: &SessionInfo, zenoh_thread: zenoh_thread::ZenohThread) -> Self {
         Self {
             details: details::Details::default(),
             focus: ElementInFocus::TopicOverview,
-            footer: footer::Footer::new(broker),
-            mqtt_thread,
+            footer: footer::Footer::new(session_info),
+            zenoh_thread,
             topic_overview: topic_overview::TopicOverview::default(),
         }
     }
@@ -167,14 +168,14 @@ impl App {
         let Some(topic) = self.topic_overview.get_selected() else {
             return false;
         };
-        self.mqtt_thread.get_history().get(&topic).is_some()
+        self.zenoh_thread.get_history().get(&topic).is_some()
     }
 
     fn can_switch_to_payload(&self) -> bool {
         let Some(topic) = self.topic_overview.get_selected() else {
             return false;
         };
-        self.mqtt_thread
+        self.zenoh_thread
             .get_history()
             .get(&topic)
             .and_then(|entries| {
@@ -192,7 +193,7 @@ impl App {
     /// On current topic with the current history table index
     fn get_selected_payload(&self) -> Option<Payload> {
         let topic = self.topic_overview.get_selected()?;
-        self.mqtt_thread
+        self.zenoh_thread
             .get_history()
             .get(&topic)
             .and_then(|entries| {
@@ -249,7 +250,7 @@ impl App {
                 }
                 KeyCode::Backspace | KeyCode::Delete => {
                     if let Some(topic) = self.topic_overview.get_selected() {
-                        self.focus = ElementInFocus::CleanRetainedPopup(topic);
+                        self.focus = ElementInFocus::CleanPopup(topic);
                         true
                     } else {
                         false
@@ -404,14 +405,14 @@ impl App {
                 }
                 KeyCode::Delete | KeyCode::Backspace => {
                     // This is a more hidden feature as changing the cached history might be weird to understand.
-                    // Clean Retained != Remove from local cache.
+                    // Delete keys != Remove from local cache.
                     // Therefore, its not visible in the footer.
                     if let Some(selection) = self.details.table_state.selected() {
                         let topic = self
                             .topic_overview
                             .get_selected()
                             .expect("Should have a selected topic when on history view");
-                        self.mqtt_thread
+                        self.zenoh_thread
                             .uncache_topic_entry(&topic, selection)
                             .is_some()
                     } else {
@@ -420,9 +421,9 @@ impl App {
                 }
                 _ => false,
             },
-            ElementInFocus::CleanRetainedPopup(topic) => {
+            ElementInFocus::CleanPopup(topic) => {
                 if matches!(key.code, KeyCode::Enter | KeyCode::Char(' ')) {
-                    self.mqtt_thread.clean_below(topic)?;
+                    self.zenoh_thread.clean_below(topic)?;
                 }
                 self.focus = ElementInFocus::TopicOverview;
                 true
@@ -528,7 +529,7 @@ impl App {
     // Returns `true` when selection changed
     fn search_select(&mut self, advance: SearchSelection) -> bool {
         let selection = self.topic_overview.get_selected();
-        let history = self.mqtt_thread.get_history();
+        let history = self.zenoh_thread.get_history();
         let mut topics = history
             .get_all_topics()
             .into_iter()
@@ -577,7 +578,7 @@ impl App {
     // Returns `true` when the opened topics changed
     fn open_all_search_matches(&mut self) -> bool {
         let topics = self
-            .mqtt_thread
+            .zenoh_thread
             .get_history()
             .get_all_topics()
             .into_iter()
@@ -599,7 +600,7 @@ impl App {
         const HEADER_HEIGHT: u16 = 1;
         const FOOTER_HEIGHT: u16 = 1;
 
-        let connection_error = self.mqtt_thread.has_connection_err();
+        let connection_error = self.zenoh_thread.has_connection_err();
 
         let area = frame.size();
         let Rect { width, height, .. } = area;
@@ -639,15 +640,15 @@ impl App {
 
         self.footer.draw(frame, footer_area, self);
         if let Some(connection_error) = connection_error {
-            mqtt_error_widget::draw(
+            connection_error_widget::draw(
                 frame,
                 error_area,
-                "MQTT Connection Error",
+                "Zenoh Connection Error",
                 &connection_error,
             );
         }
 
-        let history = self.mqtt_thread.get_history();
+        let history = self.zenoh_thread.get_history();
 
         let overview_area = self
             .topic_overview
@@ -680,8 +681,8 @@ impl App {
         );
         drop(history);
 
-        if let ElementInFocus::CleanRetainedPopup(topic) = &self.focus {
-            clean_retained::draw_popup(frame, topic);
+        if let ElementInFocus::CleanPopup(topic) = &self.focus {
+            clean::draw_popup(frame, topic);
         }
     }
 }

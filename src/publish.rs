@@ -1,27 +1,9 @@
-use rumqttc::{Client, Connection};
+use zenoh::{Session, Wait};
 
-pub fn eventloop(client: &Client, mut connection: Connection, verbose: bool) {
-    for notification in connection.iter() {
-        match notification.expect("connection error") {
-            rumqttc::Event::Outgoing(outgoing) => {
-                if verbose {
-                    println!("outgoing {outgoing:?}");
-                }
-
-                if outgoing == rumqttc::Outgoing::Disconnect {
-                    break;
-                }
-            }
-            rumqttc::Event::Incoming(packet) => {
-                if verbose {
-                    println!("incoming {packet:?}");
-                }
-
-                if let rumqttc::Packet::PubAck(_) = packet {
-                    // There was published something -> success -> disconnect
-                    client.disconnect().unwrap();
-                }
-            }
-        }
-    }
+pub fn send(session: &Session, keyexpr: &str, payload: Vec<u8>) -> anyhow::Result<()> {
+    session
+        .put(keyexpr, payload)
+        .wait()
+        .map_err(|err| anyhow::anyhow!(err))?;
+    Ok(())
 }

@@ -4,14 +4,13 @@ use ego_tree::{NodeId, NodeRef, Tree};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use tui_tree_widget::TreeItem;
-
 use crate::interactive::ui::STYLE_BOLD;
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 
 pub const STYLE_DARKGRAY: Style = Style::new().fg(Color::DarkGray);
 
 struct Topic {
-    /// Topic `foo/bar` would have the leaf `bar`
+    /// Key expression `foo/bar` would have the leaf `bar`
     leaf: Box<str>,
     history: Vec<HistoryEntry>,
 }
@@ -32,12 +31,12 @@ struct RecursiveTreeItemGenerator {
     tree_item: TreeItem<'static, String>,
 }
 
-pub struct MqttHistory {
+pub struct ZenohHistory {
     tree: Tree<Topic>,
     ids: HashMap<String, NodeId>,
 }
 
-impl MqttHistory {
+impl ZenohHistory {
     pub fn new() -> Self {
         Self {
             tree: Tree::new(Topic::new("".into())),
@@ -45,12 +44,12 @@ impl MqttHistory {
         }
     }
 
-    fn entry(&mut self, topic: String) -> NodeId {
-        if let Some(id) = self.ids.get(&topic) {
+    fn entry(&mut self, keyexpr: String) -> NodeId {
+        if let Some(id) = self.ids.get(&keyexpr) {
             *id
         } else {
             let mut parent = self.tree.root().id();
-            for part in topic.split('/') {
+            for part in keyexpr.split('/') {
                 let noderef = self.tree.get(parent).unwrap();
                 let equal_or_after = noderef.children().find(|node| &*node.value().leaf >= part);
                 if let Some(eoa) = equal_or_after {
@@ -66,13 +65,13 @@ impl MqttHistory {
                     parent = nodemut.append(Topic::new(part.into())).id();
                 }
             }
-            self.ids.insert(topic, parent);
+            self.ids.insert(keyexpr, parent);
             parent
         }
     }
 
-    pub fn add(&mut self, topic: String, history_entry: HistoryEntry) {
-        let id = self.entry(topic);
+    pub fn add(&mut self, keyexpr: String, history_entry: HistoryEntry) {
+        let id = self.entry(keyexpr);
         self.tree
             .get_mut(id)
             .unwrap()
@@ -81,13 +80,13 @@ impl MqttHistory {
             .push(history_entry);
     }
 
-    pub fn get(&self, topic: &str) -> Option<&Vec<HistoryEntry>> {
-        let id = self.ids.get(topic)?;
+    pub fn get(&self, keyexpr: &str) -> Option<&Vec<HistoryEntry>> {
+        let id = self.ids.get(keyexpr)?;
         self.tree.get(*id).map(|node| &node.value().history)
     }
 
-    pub fn uncache_topic_entry(&mut self, topic: &str, index: usize) -> Option<HistoryEntry> {
-        let id = self.ids.get(topic)?;
+    pub fn uncache_topic_entry(&mut self, keyexpr: &str, index: usize) -> Option<HistoryEntry> {
+        let id = self.ids.get(keyexpr)?;
         let mut node = self.tree.get_mut(*id)?;
         let topic = node.value();
         // Prevent removing the newest entry (or out of bounds)
@@ -173,10 +172,12 @@ impl MqttHistory {
 
     #[cfg(test)]
     pub fn example() -> Self {
+        use zenoh::sample::SampleKind;
+
         fn entry(payload: &str) -> HistoryEntry {
             HistoryEntry {
-                qos: rumqttc::QoS::AtLeastOnce,
-                time: crate::mqtt::Time::new_now(false),
+                kind: SampleKind::Put,
+                time: crate::zenoh_client::Time::new_now(),
                 payload_size: payload.len(),
                 payload: crate::payload::Payload::unlimited(payload.into()),
             }
@@ -206,20 +207,20 @@ fn is_topic_below(base: &str, child: &str) -> bool {
 
 #[test]
 fn topics_below_works() {
-    let mut actual = MqttHistory::example().get_topics_below("foo");
+    let mut actual = ZenohHistory::example().get_topics_below("foo");
     actual.sort_unstable();
     assert_eq!(actual, ["foo/bar", "foo/test"]);
 }
 
 #[test]
 fn topics_below_finds_itself_works() {
-    let actual = MqttHistory::example().get_topics_below("test");
+    let actual = ZenohHistory::example().get_topics_below("test");
     assert_eq!(actual, ["test"]);
 }
 
 #[test]
 fn tree_items_works() {
-    let example = MqttHistory::example();
+    let example = ZenohHistory::example();
     let (topics, messages, items) = example.to_tree_items();
     assert_eq!(topics, 4);
     assert_eq!(messages, 5);

@@ -9,7 +9,7 @@ use ratatui_binary_data_widget::{BinaryDataWidget, BinaryDataWidgetState};
 use tui_tree_widget::{Tree, TreeState};
 
 use crate::interactive::ui::{focus_color, split_area_vertically, BORDERS_TOP_RIGHT};
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 use crate::payload::{tree_items_from_json, tree_items_from_messagepack, JsonSelector, Payload};
 
 #[derive(Default)]

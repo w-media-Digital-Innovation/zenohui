@@ -1,6 +1,8 @@
-# MQTT TUI
+# Zenoh TUI
 
-Subscribe to a MQTT Topic or publish something quickly from the terminal
+Subscribe to a Zenoh key expression or publish something quickly from the terminal
+
+> **Note:** This project is based on [mqttui](https://github.com/EdJoPaTo/mqttui) and has been adapted to work with [Zenoh](https://zenoh.io/) instead of MQTT.
 
 ## Features
 
@@ -9,155 +11,143 @@ Subscribe to a MQTT Topic or publish something quickly from the terminal
 ![Screenshot of the interactive terminal UI](media/tui.png)
 
 ```bash
-# Subscribe to everything (#)
-mqttui
+# Subscribe to everything (**). Defaults to tcp/127.0.0.1:7447.
+zenohui
 
-# Subscribe to topic
-mqttui "topic"
+# Subscribe to a key expression
+zenohui "demo/**"
 
-# Subscribe to topic with a specific host (default is mqtt://localhost)
-mqttui --broker "mqtt://test.mosquitto.org" "hello/world"
+# Subscribe using an explicit peer
+zenohui --peer "tcp/127.0.0.1:7447" "demo/**"
 
 # More arguments and details
-mqttui --help
+zenohui --help
 ```
 
 ### Publish
 
 ```bash
-mqttui publish "hello" "world"
-
-mqttui publish --retain "foo/bar" "Banana?"
+zenohui publish "demo/hello" "world"
 
 # Use stdin to publish file contents
-mqttui publish "foo/bar" </etc/hostname
+zenohui publish "demo/hello" </etc/hostname
 # or other things
-cowsay "I was here" | mqttui publish "foo/bar"
+cowsay "I was here" | zenohui publish "demo/hello"
 
 # More arguments and details
-mqttui publish --help
+zenohui publish --help
 ```
 
 ### Log to stdout
 
 ```plaintext
-$ mqttui log "espHome-co2/sensor/#" "espHome-test/sensor/temperature/state"
-RETAINED     espHome-co2/sensor/rssi/state                      QoS:AtMostOnce  Payload(  6): -80.09
-RETAINED     espHome-co2/sensor/co2/state                       QoS:AtMostOnce  Payload(  5): 450.8
-RETAINED     espHome-co2/sensor/temperature/state               QoS:AtMostOnce  Payload(  6): 22.129
-RETAINED     espHome-co2/sensor/humidity/state                  QoS:AtMostOnce  Payload(  5): 25.18
-RETAINED     espHome-test/sensor/temperature/state              QoS:AtMostOnce  Payload(  6): 10.339
-12:10:06.650 espHome-test/sensor/temperature/state              QoS:AtMostOnce  Payload(  6): 10.454
-12:10:39.606 espHome-co2/sensor/co2/state                       QoS:AtMostOnce  Payload(  5): 432.5
-12:10:53.860 espHome-co2/sensor/temperature/state               QoS:AtMostOnce  Payload(  6): 21.974
-12:12:06.644 espHome-test/sensor/temperature/state              QoS:AtMostOnce  Payload(  6): 10.536
-12:12:39.556 espHome-co2/sensor/co2/state                       QoS:AtMostOnce  Payload(  5): 404.3
-12:12:53.859 espHome-co2/sensor/temperature/state               QoS:AtMostOnce  Payload(  6): 21.921
-12:13:20.146 espHome-co2/sensor/humidity/state                  QoS:AtMostOnce  Payload(  5): 25.11
-12:13:27.906 espHome-co2/sensor/rssi/state                      QoS:AtMostOnce  Payload(  6): -79.81
-12:14:06.643 espHome-test/sensor/temperature/state              QoS:AtMostOnce  Payload(  6): 10.568
+$ zenohui log "demo/**"
+12:10:06.650 Kind:Put    demo/sensor/temp                          Payload(  6): 22.129
+12:10:39.606 Kind:Put    demo/sensor/temp                          Payload(  6): 22.454
 ```
 
 ```bash
-# Subscribe to topic
-mqttui log "topic"
+# Subscribe to a key expression
+zenohui log "demo/**"
 
-# Multiple topics
-mqttui log "topic1" "topic2"
+# Multiple key expressions
+zenohui log "demo/sensor/**" "demo/actuator/**"
 
 # More arguments and details
-mqttui log --help
+zenohui log --help
 ```
 
 ### Read a single payload to stdout
 
-In scripts, it's helpful to get the current payload of a specific topic.
+In scripts, it's helpful to get the current payload of a specific key.
 
 ```bash
-# Print the first received message to stdout and the topic to stderr
-mqttui read-one room/temp
+# Print the first received sample to stdout and the key expression to stderr
+zenohui read-one room/temp
 
 # Save the payload to a bash variable to use it
-temp=$(mqttui read-one room/temp)
+temp=$(zenohui read-one room/temp)
 echo "The temperature is $temp right now"
 
-# Wait for a non retained message (default when there is none)
-temp=$(mqttui read-one --ignore-retained room/temp)
-echo "Breaking news: We just received an updated temperature of $temp"
-
 # More arguments and details
-mqttui read-one --help
+zenohui read-one --help
 ```
 
-### Clean retained topics
+### Delete keys
 
-Use the interactive TUI and press Delete or Backspace on a topic to clean the tree or use the sub-command.
-
-![Screenshot of the TUI with the cleaning dialog open](media/clean-interactive.png)
+Use the interactive TUI and press Delete or Backspace on a key to delete the tree or use the sub-command.
 
 ```plaintext
-$ mqttui publish --retain "hello" "world"
+$ zenohui publish "demo/hello" "world"
 
-$ mqttui clean-retained "hello"
-RETAINED     hello          QoS:AtLeastOnce Payload(  5): world
-Cleaned 1 topics
+$ zenohui clean "demo/hello"
+Cleaned demo/hello
 ```
 
 ```bash
-# Clean the topic
-mqttui clean-retained "topic"
+# Delete a key
+zenohui clean "demo/hello"
 
-# Clean the topic tree below
-mqttui clean-retained "topic/#"
+# Delete a key tree below
+zenohui clean "demo/**"
 
 # More arguments and details
-mqttui clean-arguments --help
+zenohui clean --help
 ```
 
 ### Configure via environment variables
 
 See the `--help` command for environment variables to be set.
 
-Personally I have set my default broker, so I don't have to use `--broker` all the time:
+Personally I have set my default peer, so I don't have to use `--peer` all the time:
 
 ```bash
-export MQTTUI_BROKER=mqtt://pi-home.local
+export ZENOHUI_PEER=tcp/127.0.0.1:7447
 
-# Use the command without specifying the broker every time
-mqttui "topic"
+# Use the command without specifying the peer every time
+zenohui "demo/**"
+```
+
+You can also configure listeners and the session mode:
+
+```bash
+export ZENOHUI_LISTEN=tcp/0.0.0.0:7447
+export ZENOHUI_MODE=peer
 ```
 
 ## Install
 
-There are generally 3 ways to install `mqttui`, in the order of preference: From your [package manager](#packaged), [prebuilt](#prebuilt) or [from source](#from-source)
+There are generally 3 ways to install `zenohui`, in the order of preference: From your [package manager](#packaged), [prebuilt](#prebuilt) or [from source](#from-source)
 
 ### Packaged
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/mqttui.svg?columns=2&exclude_unsupported=1)](https://repology.org/project/mqttui/versions)
+> **Note:** zenohui is not yet available in package repositories. Please use [prebuilt binaries](#prebuilt) or [build from source](#from-source).
 
+<!--
 #### Alpine
 
 ```bash
-apk add mqttui
+apk add zenohui
 ```
 
 #### Arch Linux
 
 ```bash
-pacman -S mqttui
+pacman -S zenohui
 ```
 
 #### Homebrew (Mac or Linux)
 
 ```bash
-brew install mqttui
+brew install zenohui
 ```
+-->
 
 ### Prebuilt
 
-Check the [Releases](https://github.com/EdJoPaTo/mqttui/releases).
+Check the [Releases](https://github.com/w-media-Digital-Innovation/zenohui/releases).
 
-The filenames are similar to this: `mqttui-<version>-<architecture>-<platform>.zip`
+The filenames are similar to this: `zenohui-<version>-<architecture>-<platform>.zip`
 Choose the correct file for your given CPU architecture and platform.
 
 The prebuilt CPU architectures include:
@@ -194,25 +184,10 @@ You need to extract the tarball and put the binary somewhere on your path (commo
 
 #### Windows
 
-Download the appropriate `mqttui-<version>-<arch>-pc-windows-msvc.zip` for your architecture and extract the content somewhere useful.
+Download the appropriate `zenohui-<version>-<arch>-pc-windows-msvc.zip` for your architecture and extract the content somewhere useful.
 
 ### From Source
 
-- Clone this repository
-- `cargo install --path .`
-
-## History and Alternatives
-
-Taking a look into existing "lets just view MQTT right now" or "quickly publish something" projects they are always quite bulky and not that fast.
-
-Before having `mqttui` I used [thomasnordquist/MQTT-Explorer](https://github.com/thomasnordquist/MQTT-Explorer) as it has a great overview of what's going on, a small topic based history and a sorted main view.
-But while it's running its eating up a lot of resources.
-
-Publishing something quickly from command line is also not that fun.
-The feature rich CLI alternative [hivemq/mqtt-cli](https://github.com/hivemq/mqtt-cli) takes some time to do its job and is not as easy to use as it has a lot of flags to specify.
-Subscribing to many topics also isn't as useful to watch at as I hoped for.
-
-While [`mosquitto_sub` and `mosquitto_pub`](https://mosquitto.org/) are bundled when installing Mosquitto they are also a bit bulky to use.
-
-That's why I started building my own terminal based version to quickly watch or publish MQTT stuff.
-It won't be as feature rich as something like the HiveMQ CLI approach, but it aims at being easy to use and fast.
+```bash
+cargo install --path .
+```

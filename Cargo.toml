@@ -1,11 +1,11 @@
 [package]
-name = "mqttui"
-description = "Subscribe to a MQTT Topic or publish something quickly from the terminal"
-version = "0.22.1"
+name = "zenohui"
+description = "Subscribe to a Zenoh key expression or publish something quickly from the terminal"
+version = "0.1.0"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/EdJoPaTo/mqttui"
-authors = ["EdJoPaTo <mqttui-rust@edjopato.de>"]
-keywords = ["mqtt", "iot", "tui", "cli", "terminal"]
+repository = "https://github.com/w-media-Digital-Innovation/zenohui"
+authors = ["Olaf Wiedfeldt <gitlab@wmedia.de>"]
+keywords = ["zenoh", "iot", "tui", "cli", "terminal"]
 categories = ["command-line-utilities", "network-programming"]
 edition = "2021"
 rust-version = "1.74.0"
@@ -25,7 +25,6 @@ anyhow = "1"
 clap = { version = "4", features = ["deprecated", "derive", "env"] }
 clap_complete = "4"
 clap_mangen = "0.2"
-url = "2"
 
 [dependencies]
 anyhow = "1"
@@ -33,35 +32,29 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "serd
 clap = { version = "4", features = ["deprecated", "derive", "env", "wrap_help"] }
 crossterm = "0.27"
 ego-tree = "0.10"
-rand = "0.9"
 ratatui = "0.26"
 ratatui-binary-data-widget = { git = "https://github.com/EdJoPaTo/ratatui-binary-data-widget", branch = "main" }
 ratatui-logline-table = { git = "https://github.com/EdJoPaTo/ratatui-logline-table", branch = "main" }
 rmpv = { version = "1", features = ["with-serde"] }
-rumqttc = { version = "0.24", features = ["websocket"] }
-rustls = "0.22"
-rustls-native-certs = "0.8" # TODO: migrate to rustls-platform-verifier with rustls upgrade
-rustls-pemfile = "2"
-rustls-pki-types = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tui-tree-widget = "0.20"
 unicode-width = "=0.1.12" # remove version pinning when https://github.com/ratatui-org/ratatui/pull/1226 is released
-url = "2"
+zenoh = "1.6.2"
 
 # https://crates.io/crates/cargo-deb
 [package.metadata.deb]
 depends = ""
 section = "net"
 assets = [
-	["target/release/mqttui", "/usr/bin/", "755"],
-	["CHANGELOG.md", "/usr/share/doc/mqttui/", "644"],
-	["LICENSE", "/usr/share/licenses/mqttui/", "644"],
-	["README.md", "/usr/share/doc/mqttui/", "644"],
+	["target/release/zenohui", "/usr/bin/", "755"],
+	["CHANGELOG.md", "/usr/share/doc/zenohui/", "644"],
+	["LICENSE", "/usr/share/licenses/zenohui/", "644"],
+	["README.md", "/usr/share/doc/zenohui/", "644"],
 
-	["target/completions/mqttui.bash", "/usr/share/bash-completion/completions/mqttui", "644"],
-	["target/completions/mqttui.fish", "/usr/share/fish/completions/", "644"],
-	["target/completions/_mqttui", "/usr/share/zsh/site-functions/", "644"],
+	["target/completions/zenohui.bash", "/usr/share/bash-completion/completions/zenohui", "644"],
+	["target/completions/zenohui.fish", "/usr/share/fish/completions/", "644"],
+	["target/completions/_zenohui", "/usr/share/zsh/site-functions/", "644"],
 
 	["target/manpages/*", "/usr/share/man/man1/", "644"],
 ]
@@ -69,14 +62,14 @@ assets = [
 # https://crates.io/crates/cargo-generate-rpm
 [package.metadata.generate-rpm]
 assets = [
-	{ source = "target/release/mqttui", dest = "/usr/bin/", mode = "755" },
-	{ source = "CHANGELOG.md", dest = "/usr/share/doc/mqttui/", mode = "644", doc = true },
-	{ source = "LICENSE", dest = "/usr/share/licenses/mqttui/", mode = "644", doc = true },
-	{ source = "README.md", dest = "/usr/share/doc/mqttui/", mode = "644", doc = true },
+	{ source = "target/release/zenohui", dest = "/usr/bin/", mode = "755" },
+	{ source = "CHANGELOG.md", dest = "/usr/share/doc/zenohui/", mode = "644", doc = true },
+	{ source = "LICENSE", dest = "/usr/share/licenses/zenohui/", mode = "644", doc = true },
+	{ source = "README.md", dest = "/usr/share/doc/zenohui/", mode = "644", doc = true },
 
-	{ source = "target/completions/mqttui.bash", dest = "/usr/share/bash-completion/completions/mqttui", mode = "644" },
-	{ source = "target/completions/mqttui.fish", dest = "/usr/share/fish/vendor_completions.d/", mode = "644" },
-	{ source = "target/completions/_mqttui", dest = "/usr/share/zsh/site-functions/", mode = "644" },
+	{ source = "target/completions/zenohui.bash", dest = "/usr/share/bash-completion/completions/zenohui", mode = "644" },
+	{ source = "target/completions/zenohui.fish", dest = "/usr/share/fish/vendor_completions.d/", mode = "644" },
+	{ source = "target/completions/_zenohui", dest = "/usr/share/zsh/site-functions/", mode = "644" },
 
 	{ source = "target/manpages/*", dest = "/usr/share/man/man1/", mode = "644", doc = true },
 ]

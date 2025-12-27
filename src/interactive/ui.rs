@@ -10,7 +10,7 @@ pub enum ElementInFocus {
     TopicSearch,
     Payload,
     HistoryTable,
-    CleanRetainedPopup(String),
+    CleanPopup(String),
 }
 
 pub const fn focus_color(has_focus: bool) -> Color {

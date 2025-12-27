@@ -4,7 +4,7 @@ use ratatui::widgets::{Block, BorderType, Scrollbar, ScrollbarOrientation};
 use ratatui::Frame;
 use tui_tree_widget::{Tree, TreeState};
 
-use super::mqtt_history::MqttHistory;
+use super::zenoh_history::ZenohHistory;
 use super::ui::{focus_color, BORDERS_TOP_RIGHT};
 
 #[derive(Default)]
@@ -23,7 +23,7 @@ impl TopicOverview {
         Some(selected.join("/"))
     }
 
-    pub fn draw(&mut self, frame: &mut Frame, area: Rect, history: &MqttHistory, has_focus: bool) {
+    pub fn draw(&mut self, frame: &mut Frame, area: Rect, history: &ZenohHistory, has_focus: bool) {
         let (topic_amount, message_amount, tree_items) = history.to_tree_items();
         let title = format!("Topics ({topic_amount}, {message_amount} messages)");
         let focus_color = focus_color(has_focus);

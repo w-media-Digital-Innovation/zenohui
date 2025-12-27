@@ -6,7 +6,7 @@ use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
 use ratatui::{symbols, Frame};
 
 use self::point::Point;
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 use crate::payload::JsonSelector;
 
 mod point;
@@ -95,14 +95,15 @@ impl Graph {
 #[cfg(test)]
 mod tests {
     use chrono::Timelike;
+    use zenoh::sample::SampleKind;
 
     use super::*;
-    use crate::mqtt::Time;
+    use crate::zenoh_client::Time;
     use crate::payload::Payload;
 
     fn entry(time: Time, payload: &str) -> HistoryEntry {
         HistoryEntry {
-            qos: rumqttc::QoS::AtMostOnce,
+            kind: SampleKind::Put,
             time,
             payload_size: payload.len(),
             payload: Payload::String(payload.into()),
@@ -112,24 +113,22 @@ mod tests {
     #[test]
     fn not_enough_points() {
         let entries = vec![
-            entry(Time::Retained, "12.3"),
+            entry(Time::Unknown, "12.3"),
             entry(Time::Local(Time::datetime_example()), "12.3"),
-            // After an MQTT reconnect retained are sent again -> also filter them out
-            entry(Time::Retained, "12.3"),
+            entry(Time::Unknown, "12.3"),
         ];
         let graph = Graph::parse(&entries, 0, &[]);
         assert!(graph.is_none());
     }
 
     #[test]
-    fn retained_filtered_out() {
+    fn unknown_filtered_out() {
         let first_date = Time::datetime_example();
         let second_date = first_date.with_second(59).unwrap();
         let entries = vec![
-            entry(Time::Retained, "12.3"),
+            entry(Time::Unknown, "12.3"),
             entry(Time::Local(first_date), "12.4"),
-            // After an MQTT reconnect retained are sent again -> also filter them out
-            entry(Time::Retained, "12.4"),
+            entry(Time::Unknown, "12.4"),
             entry(Time::Local(second_date), "12.5"),
         ];
 

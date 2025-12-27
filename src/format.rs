@@ -1,16 +1,14 @@
-use rumqttc::QoS;
+use zenoh::sample::SampleKind;
 
-pub const fn qos(qos: QoS) -> &'static str {
-    match qos {
-        QoS::AtLeastOnce => "AtLeastOnce",
-        QoS::AtMostOnce => "AtMostOnce",
-        QoS::ExactlyOnce => "ExactlyOnce",
+pub const fn kind(kind: SampleKind) -> &'static str {
+    match kind {
+        SampleKind::Put => "Put",
+        SampleKind::Delete => "Delete",
     }
 }
 
 #[test]
-fn formats_qos() {
-    assert_eq!("AtLeastOnce", qos(QoS::AtLeastOnce));
-    assert_eq!("AtMostOnce", qos(QoS::AtMostOnce));
-    assert_eq!("ExactlyOnce", qos(QoS::ExactlyOnce));
+fn formats_kind() {
+    assert_eq!("Put", kind(SampleKind::Put));
+    assert_eq!("Delete", kind(SampleKind::Delete));
 }

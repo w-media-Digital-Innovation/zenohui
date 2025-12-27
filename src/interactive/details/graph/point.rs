@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 use crate::payload::{JsonSelector, Payload};
 
 pub struct Point {
@@ -94,16 +94,16 @@ fn f64_from_string_works() {
 
 #[cfg(test)]
 mod parse_tests {
-    use rumqttc::QoS;
+    use zenoh::sample::SampleKind;
 
     use super::*;
-    use crate::mqtt::Time;
+    use crate::zenoh_client::Time;
 
     #[test]
-    fn retained() {
+    fn unknown_time() {
         let entry = HistoryEntry {
-            qos: QoS::AtMostOnce,
-            time: Time::Retained,
+            kind: SampleKind::Put,
+            time: Time::Unknown,
             payload_size: 42,
             payload: Payload::unlimited(vec![]),
         };
@@ -116,7 +116,7 @@ mod parse_tests {
         use serde_json::{Number, Value};
         let date = Time::datetime_example();
         let entry = HistoryEntry {
-            qos: QoS::AtMostOnce,
+            kind: SampleKind::Put,
             time: Time::Local(date),
             payload_size: 42,
             payload: Payload::Json(Value::Number(Number::from_f64(12.3).unwrap())),
@@ -130,7 +130,7 @@ mod parse_tests {
     fn messagepack_number_works() {
         let date = Time::datetime_example();
         let entry = HistoryEntry {
-            qos: QoS::AtMostOnce,
+            kind: SampleKind::Put,
             time: Time::Local(date),
             payload_size: 42,
             payload: Payload::MessagePack(rmpv::Value::F64(12.3)),

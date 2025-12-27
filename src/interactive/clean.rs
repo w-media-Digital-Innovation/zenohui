@@ -4,15 +4,15 @@ use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui::Frame;
 
-pub fn draw_popup(frame: &mut Frame, topic: &str) {
+pub fn draw_popup(frame: &mut Frame, keyexpr: &str) {
     let block = Block::bordered()
         .border_style(Style::new().fg(Color::Red))
         .title_alignment(Alignment::Center)
-        .title("Clean retained topics");
+        .title("Delete keys");
     let text = vec![
-        Line::raw("Clean the following topic and all relative below?"),
+        Line::raw("Delete the following key expression and all relative below?"),
         Line::styled(
-            topic,
+            keyexpr,
             Style::new().add_modifier(Modifier::BOLD | Modifier::ITALIC),
         ),
         Line::raw(""),

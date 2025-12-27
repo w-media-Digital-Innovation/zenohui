@@ -1,12 +1,13 @@
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 use ratatui::Frame;
 
-use crate::cli::Broker;
 use crate::interactive::{App, ElementInFocus};
+use crate::zenoh_client::SessionInfo;
 
-const VERSION_TEXT: &str = concat!(" mqttui ", env!("CARGO_PKG_VERSION"), " ");
+const VERSION_TEXT: &str = concat!(" zenohui ", env!("CARGO_PKG_VERSION"), " ");
 const VERSION_STYLE: Style = Style::new().fg(Color::Black).bg(Color::Gray);
 const KEY_STYLE: Style = Style::new()
     .fg(Color::Black)
@@ -14,15 +15,15 @@ const KEY_STYLE: Style = Style::new()
     .add_modifier(Modifier::BOLD);
 
 pub struct Footer {
-    broker: Box<str>,
+    session: Box<str>,
     full_info: Box<str>,
 }
 
 impl Footer {
-    pub fn new(broker: &Broker) -> Self {
+    pub fn new(session_info: &SessionInfo) -> Self {
         Self {
-            broker: format!(" {broker} ").into(),
-            full_info: format!("{VERSION_TEXT}@ {broker} ").into(),
+            session: format!(" {} ", session_info.description).into(),
+            full_info: format!("{VERSION_TEXT}@ {} ", session_info.description).into(),
         }
     }
 
@@ -51,7 +52,7 @@ impl Footer {
                     add!("O", "Close all");
                 }
                 if app.topic_overview.get_selected().is_some() {
-                    add!("Del", "Clean retained");
+                    add!("Del", "Delete keys");
                 }
                 if app.can_switch_to_payload() {
                     add!("Tab", "Switch to Payload");
@@ -89,8 +90,8 @@ impl Footer {
                 add!("q", "Quit");
                 add!("Tab", "Switch to Topics");
             }
-            ElementInFocus::CleanRetainedPopup(_) => {
-                add!("Enter", "Clean topic tree");
+            ElementInFocus::CleanPopup(_) => {
+                add!("Enter", "Delete key tree");
                 add!("Any", "Abort");
             }
         }
@@ -102,13 +103,13 @@ impl Footer {
             frame.set_cursor(x, area.y);
         }
 
-        // Show version / broker when enough space
+        // Show version / session info when enough space
         {
             let remaining = (area.width as usize).saturating_sub(keys.width());
             let text = if remaining > self.full_info.len() {
                 Some(&*self.full_info)
-            } else if remaining > self.broker.len() {
-                Some(&*self.broker)
+            } else if remaining > self.session.len() {
+                Some(&*self.session)
             } else if remaining > VERSION_TEXT.len() {
                 Some(VERSION_TEXT)
             } else {
@@ -118,13 +119,12 @@ impl Footer {
                 #[allow(clippy::cast_possible_truncation)]
                 let area = Rect {
                     x: area.width.saturating_sub(text.len() as u16),
+                    y: area.y,
                     width: text.len() as u16,
-                    ..area
+                    height: 1,
                 };
-                frame.render_widget(Span::styled(text, VERSION_STYLE), area);
+                frame.render_widget(Paragraph::new(text).style(VERSION_STYLE), area);
             }
         }
-
-        frame.render_widget(keys, area);
     }
 }

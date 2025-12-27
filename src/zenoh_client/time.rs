@@ -4,17 +4,13 @@ use serde::Serialize;
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(untagged)]
 pub enum Time {
-    Retained,
+    Unknown,
     Local(NaiveDateTime),
 }
 
 impl Time {
-    pub fn new_now(retain: bool) -> Self {
-        if retain {
-            Self::Retained
-        } else {
-            Self::Local(chrono::Local::now().naive_local())
-        }
+    pub fn new_now() -> Self {
+        Self::Local(chrono::Local::now().naive_local())
     }
 
     pub const fn as_optional(&self) -> Option<&NaiveDateTime> {
@@ -37,22 +33,22 @@ impl Time {
 impl std::fmt::Display for Time {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Retained => fmt.pad("RETAINED"),
+            Self::Unknown => fmt.pad("UNKNOWN"),
             Self::Local(time) => fmt.write_fmt(format_args!("{}", time.format("%_H:%M:%S.%3f"))),
         }
     }
 }
 
 #[test]
-fn new_now_retained() {
-    let result = Time::new_now(true);
+fn new_now_local() {
+    let result = Time::new_now();
     dbg!(result);
-    assert!(matches!(result, Time::Retained));
+    assert!(matches!(result, Time::Local(_)));
 }
 
 #[test]
-fn optional_retained() {
-    let time = Time::Retained;
+fn optional_unknown() {
+    let time = Time::Unknown;
     assert_eq!(time.as_optional(), None);
 }
 
@@ -71,14 +67,14 @@ fn local_to_string() {
 }
 
 #[test]
-fn retained_to_string() {
-    let time = Time::Retained;
-    assert_eq!(time.to_string(), "RETAINED");
+fn unknown_to_string() {
+    let time = Time::Unknown;
+    assert_eq!(time.to_string(), "UNKNOWN");
 }
 
 #[test]
-fn retained_fmt_width() {
-    let time = Time::Retained;
+fn unknown_fmt_width() {
+    let time = Time::Unknown;
     let time = format!("{time:12}");
-    assert_eq!(time, "RETAINED    ");
+    assert_eq!(time, "UNKNOWN     ");
 }

@@ -9,7 +9,7 @@ use ratatui_logline_table::{State as TableState, Table};
 
 use crate::format;
 use crate::interactive::ui::{focus_color, BORDERS_TOP_RIGHT, STYLE_BOLD};
-use crate::mqtt::HistoryEntry;
+use crate::zenoh_client::HistoryEntry;
 use crate::payload::{JsonSelector, Payload};
 
 #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
@@ -25,16 +25,16 @@ pub fn draw(
     let mut title = format!("History ({}", topic_history.len());
 
     {
-        let without_retain = topic_history
+        let with_time = topic_history
             .iter()
             .filter_map(|entry| entry.time.as_optional())
             .collect::<Box<[_]>>();
-        if let [first, .., last] = *without_retain {
+        if let [first, .., last] = *with_time {
             let seconds = (*last - *first)
                 .to_std()
                 .expect("later message should be after earlier message")
                 .as_secs_f64();
-            let every_n_seconds = seconds / without_retain.len().saturating_sub(1) as f64;
+            let every_n_seconds = seconds / with_time.len().saturating_sub(1) as f64;
             if every_n_seconds < 1.0 {
                 let messages_per_second = 1.0 / every_n_seconds;
                 write!(title, ", ~{messages_per_second:.1} per second")
@@ -57,12 +57,12 @@ pub fn draw(
         topic_history,
         [
             Constraint::Length(12),
-            Constraint::Length(11),
+            Constraint::Length(8),
             Constraint::Percentage(100),
         ],
         move |index, entry| {
             let time = entry.time.to_string();
-            let qos = format::qos(entry.qos).to_owned();
+            let kind = format::kind(entry.kind).to_owned();
             let value = match &entry.payload {
                 Payload::Binary(data) => binary_address
                     .and_then(|address| data.get(address).copied())
@@ -81,15 +81,15 @@ pub fn draw(
             if index == last_index {
                 [
                     Line::styled(time, STYLE_BOLD),
-                    Line::styled(qos, STYLE_BOLD),
+                    Line::styled(kind, STYLE_BOLD),
                     Line::styled(value, STYLE_BOLD),
                 ]
             } else {
-                [Line::raw(time), Line::raw(qos), Line::raw(value)]
+                [Line::raw(time), Line::raw(kind), Line::raw(value)]
             }
         },
     )
-    .header([Line::raw("Time"), Line::raw("QoS"), Line::raw("Value")])
+    .header([Line::raw("Time"), Line::raw("Kind"), Line::raw("Value")])
     .header_style(STYLE_BOLD)
     .row_highlight_style(Style::new().fg(Color::Black).bg(focus_color))
     .block(

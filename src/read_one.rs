@@ -1,44 +1,65 @@
-use std::thread::sleep;
-use std::time::Duration;
+use std::sync::{mpsc, Arc};
+use std::thread;
 
-use rumqttc::{Client, Connection};
+use zenoh::handlers::fifo::FifoChannel;
+use zenoh::sample::SampleKind;
+use zenoh::{Session, Wait};
 
 use crate::payload::Payload;
 
-pub fn show(client: &Client, mut connection: Connection, ignore_retained: bool, pretty: bool) {
-    let mut done = false;
-    for notification in connection.iter() {
-        match notification {
-            Ok(rumqttc::Event::Outgoing(outgoing)) => {
-                if outgoing == rumqttc::Outgoing::Disconnect {
-                    break;
+pub fn show(session: Arc<Session>, keyexprs: Vec<String>, pretty: bool) -> anyhow::Result<()> {
+    let (tx, rx) = mpsc::channel();
+
+    for keyexpr in keyexprs {
+        let session = Arc::clone(&session);
+        let tx = tx.clone();
+        thread::Builder::new()
+            .name(format!("zenoh read-one {keyexpr}"))
+            .spawn(move || {
+                let subscriber = match session
+                    .declare_subscriber(&keyexpr)
+                    .with(FifoChannel::default())
+                    .wait()
+                {
+                    Ok(subscriber) => subscriber,
+                    Err(err) => {
+                        eprintln!("Failed to subscribe to {keyexpr}: {err}");
+                        return;
+                    }
+                };
+                loop {
+                    match subscriber.recv() {
+                        Ok(sample) => {
+                        if sample.kind() == SampleKind::Delete {
+                                continue;
+                            }
+                            if tx.send(sample).is_err() {
+                                break;
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("Subscriber error: {err}");
+                            break;
+                        }
+                    }
                 }
-            }
-            Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish))) => {
-                if publish.dup || done {
-                    continue;
-                }
-                if ignore_retained && publish.retain {
-                    continue;
-                }
-                eprintln!("{}", publish.topic);
-                if pretty {
-                    let payload = Payload::unlimited(publish.payload.into());
-                    println!("{payload:#}");
-                } else {
-                    use std::io::Write;
-                    std::io::stdout()
-                        .write_all(&publish.payload)
-                        .expect("Should be able to write payload to stdout");
-                }
-                done = true;
-                client.disconnect().unwrap();
-            }
-            Ok(rumqttc::Event::Incoming(_)) => {}
-            Err(err) => {
-                eprintln!("Connection Error: {err}");
-                sleep(Duration::from_millis(25));
-            }
+            })
+            .expect("should be able to spawn subscriber thread");
+    }
+
+    if let Ok(sample) = rx.recv() {
+        eprintln!("{}", sample.key_expr().as_str());
+        let payload = sample.payload().to_bytes().to_vec();
+        if pretty {
+            let payload = Payload::unlimited(payload);
+            println!("{payload:#}");
+        } else {
+            use std::io::Write;
+            std::io::stdout()
+                .write_all(&payload)
+                .expect("Should be able to write payload to stdout");
         }
     }
+
+    Ok(())
 }
