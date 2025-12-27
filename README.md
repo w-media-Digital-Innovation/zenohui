@@ -8,7 +8,7 @@ Subscribe to a Zenoh key expression or publish something quickly from the termin
 
 ### Terminal UI
 
-![Screenshot of the interactive terminal UI](media/tui.png)
+![Screenshot of the interactive terminal UI](media/Bildschirmfoto%202025-12-27%20um%2014.53.35.png)
 
 ```bash
 # Subscribe to everything (**). Defaults to tcp/127.0.0.1:7447.
