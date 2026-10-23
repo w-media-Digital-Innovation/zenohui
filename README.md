@@ -1,5 +1,7 @@
 # Zenoh TUI
 
+[![Built With Ratatui](https://img.shields.io/badge/Built_With_Ratatui-000?logo=ratatui&logoColor=fff)](https://ratatui.rs/)
+
 Subscribe to a Zenoh key expression or publish something quickly from the terminal
 
 > **Note:** This project is based on [mqttui](https://github.com/EdJoPaTo/mqttui) and has been adapted to work with [Zenoh](https://zenoh.io/) instead of MQTT.
@@ -8,10 +10,10 @@ Subscribe to a Zenoh key expression or publish something quickly from the termin
 
 ### Terminal UI
 
-![Screenshot of the interactive terminal UI](media/Bildschirmfoto%202025-12-27%20um%2014.53.35.png)
+![Zenohui showing a JSON temperature reading, its history and a live graph](media/zenohui-temperature-graph.png)
 
 ```bash
-# Subscribe to everything (**). Defaults to tcp/127.0.0.1:7447.
+# Subscribe to everything (**). Defaults to peer mode with scouting.
 zenohui
 
 # Subscribe to a key expression
@@ -22,6 +24,44 @@ zenohui --peer "tcp/127.0.0.1:7447" "demo/**"
 
 # More arguments and details
 zenohui --help
+```
+
+### Plot values from JSON payloads
+
+Select a topic and press **Tab** to focus the JSON payload in the upper-right
+panel. Use **Up/Down** to select a field and **Right** or **Enter** to expand
+objects and arrays. Select a numeric value to plot its history automatically;
+at least two valid samples are needed.
+
+The screenshot above shows `readings[0].value`: expand **readings**, expand
+**0**, then select **value** to see the temperature curve. The history table
+also shows the selected field instead of the full JSON payload. Use **Left**
+to collapse a branch and **Tab** to move to the history table.
+
+### Connection settings (v0.2.0)
+
+Press **4** to open Settings. Use Up/Down to select a field and Enter to edit
+or toggle it. Enter/Esc ends text editing. Endpoints are comma-separated.
+**F5** applies the connection in the background. On failure the current session
+and history remain available; on success a fresh topic history is started.
+Explicit listener addresses already in use by the current session can prevent
+reconnection; restart with the new listener in that case.
+
+**F2** saves the form to `zenohui-profile.json` in the working directory;
+**F3** loads it without connecting. Profiles contain endpoint strings in plain
+text. They are loaded only when requested. Press 1/2/3/4 or click the tab header
+to navigate. While editing, these keys are entered as text.
+
+Routers and Peers combine local discovery with the IDs of currently connected
+nodes. The Status column distinguishes Connected from Discovered. Remote nodes
+may have no advertised locators available through the session information API.
+
+```bash
+# Connect to a remote IPv4 router while retaining local peer discovery
+zenohui --peer tcp/router.example.org:7447
+
+# Client connection without local multicast discovery
+zenohui --mode client --peer tcp/router.example.org:7447 --no-multicast
 ```
 
 ### Publish
@@ -191,3 +231,23 @@ Download the appropriate `zenohui-<version>-<arch>-pc-windows-msvc.zip` for your
 ```bash
 cargo install --path .
 ```
+
+## Built with Zenoh 🦀
+
+Zenohui is built on [Eclipse Zenoh](https://zenoh.io/), which powers its
+publish/subscribe connections, key expressions and peer/router discovery.
+Zenoh's Rust API lets us bring live data from devices and applications straight
+into a terminal interface, from individual payloads to sensor histories and
+graphs.
+
+Thank you to the Zenoh maintainers and contributors for making this possible.
+If you find zenohui useful, take a look at
+[Zenoh on GitHub](https://github.com/eclipse-zenoh/zenoh), consider giving the
+project a star, and explore the [documentation](https://zenoh.io/docs/) for
+your own projects.
+
+## Development checks
+
+Run `python3 scripts/check.py` before proposing a commit. Rust, rustfmt and
+Clippy versions are pinned; the same checks run in CI on Linux, macOS and
+Windows. See [QUALITY.md](QUALITY.md) for the checks and release checklist.

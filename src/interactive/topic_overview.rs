@@ -1,11 +1,11 @@
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, BorderType, Scrollbar, ScrollbarOrientation};
-use ratatui::Frame;
 use tui_tree_widget::{Tree, TreeState};
 
+use super::ui::{BORDERS_TOP_RIGHT, focus_color};
 use super::zenoh_history::ZenohHistory;
-use super::ui::{focus_color, BORDERS_TOP_RIGHT};
 
 #[derive(Default)]
 pub struct TopicOverview {

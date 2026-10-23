@@ -1,14 +1,14 @@
 [package]
 name = "zenohui"
 description = "Subscribe to a Zenoh key expression or publish something quickly from the terminal"
-version = "0.1.0"
+version = "0.2.0"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/w-media-Digital-Innovation/zenohui"
 authors = ["Olaf Wiedfeldt <gitlab@wmedia.de>"]
 keywords = ["zenoh", "iot", "tui", "cli", "terminal"]
 categories = ["command-line-utilities", "network-programming"]
-edition = "2021"
-rust-version = "1.74.0"
+edition = "2024"
+rust-version = "1.92.0"
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -21,7 +21,6 @@ codegen-units = 1
 lto = true
 
 [build-dependencies]
-anyhow = "1"
 clap = { version = "4", features = ["deprecated", "derive", "env"] }
 clap_complete = "4"
 clap_mangen = "0.2"

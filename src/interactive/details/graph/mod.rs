@@ -3,11 +3,11 @@ use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType};
-use ratatui::{symbols, Frame};
+use ratatui::{Frame, symbols};
 
 use self::point::Point;
-use crate::zenoh_client::HistoryEntry;
 use crate::payload::JsonSelector;
+use crate::zenoh_client::HistoryEntry;
 
 mod point;
 
@@ -98,8 +98,8 @@ mod tests {
     use zenoh::sample::SampleKind;
 
     use super::*;
-    use crate::zenoh_client::Time;
     use crate::payload::Payload;
+    use crate::zenoh_client::Time;
 
     fn entry(time: Time, payload: &str) -> HistoryEntry {
         HistoryEntry {

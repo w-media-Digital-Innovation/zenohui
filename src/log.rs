@@ -1,11 +1,10 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
+use serde::Serialize;
 use zenoh::handlers::fifo::FifoChannel;
 use zenoh::sample::SampleKind;
 use zenoh::{Session, Wait};
-
-use serde::Serialize;
 
 use crate::format;
 use crate::payload::Payload;
@@ -20,11 +19,12 @@ struct JsonLog {
     payload: Payload,
 }
 
-pub fn show(session: Arc<Session>, keyexprs: Vec<String>, json: bool) -> anyhow::Result<()> {
+#[allow(clippy::unnecessary_wraps)]
+pub fn show(session: &Arc<Session>, keyexprs: Vec<String>, json: bool) -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel();
 
     for keyexpr in keyexprs {
-        let session = Arc::clone(&session);
+        let session = Arc::clone(session);
         let tx = tx.clone();
         thread::Builder::new()
             .name(format!("zenoh log {keyexpr}"))

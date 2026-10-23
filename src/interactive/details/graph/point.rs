@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 
-use crate::zenoh_client::HistoryEntry;
 use crate::payload::{JsonSelector, Payload};
+use crate::zenoh_client::HistoryEntry;
 
 pub struct Point {
     pub time: NaiveDateTime,
@@ -124,6 +124,33 @@ mod parse_tests {
         let point = Point::parse(&entry, 0, &[]).unwrap();
         assert_eq!(point.time, date);
         assert!((point.y - 12.3).abs() < 0.1);
+    }
+
+    #[test]
+    fn nested_temperature_is_selected_and_missing_values_are_not_zero() {
+        let selector = [
+            JsonSelector::ObjectKey("readings".into()),
+            JsonSelector::ArrayIndex(0),
+            JsonSelector::ObjectKey("value".into()),
+        ];
+        for (payload, expected) in [
+            (
+                r#"{"readings":[{"channel":"TMP117","value":24.08}]}"#,
+                Some(24.08),
+            ),
+            (r#"{"readings":[{"value":null}]}"#, None),
+            (r#"{"readings":[]}"#, None),
+            (r#"{"readings":[{"value":"not a number"}]}"#, None),
+        ] {
+            let entry = HistoryEntry {
+                kind: SampleKind::Put,
+                time: Time::Local(Time::datetime_example()),
+                payload_size: payload.len(),
+                payload: Payload::Json(serde_json::from_str(payload).unwrap()),
+            };
+            let value = Point::parse(&entry, 0, &selector).map(|point| point.y);
+            assert_eq!(value, expected);
+        }
     }
 
     #[test]

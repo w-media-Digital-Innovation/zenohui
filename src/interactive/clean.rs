@@ -1,8 +1,8 @@
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Clear, Paragraph};
-use ratatui::Frame;
 
 pub fn draw_popup(frame: &mut Frame, keyexpr: &str) {
     let block = Block::bordered()

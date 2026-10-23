@@ -1,16 +1,16 @@
 use std::fmt::Write;
 
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, BorderType};
-use ratatui::Frame;
 use ratatui_logline_table::{State as TableState, Table};
 
 use crate::format;
-use crate::interactive::ui::{focus_color, BORDERS_TOP_RIGHT, STYLE_BOLD};
-use crate::zenoh_client::HistoryEntry;
+use crate::interactive::ui::{BORDERS_TOP_RIGHT, STYLE_BOLD, focus_color};
 use crate::payload::{JsonSelector, Payload};
+use crate::zenoh_client::HistoryEntry;
 
 #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
 pub fn draw(

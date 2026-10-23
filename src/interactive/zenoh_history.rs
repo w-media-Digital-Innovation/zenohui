@@ -4,6 +4,7 @@ use ego_tree::{NodeId, NodeRef, Tree};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use tui_tree_widget::TreeItem;
+
 use crate::interactive::ui::STYLE_BOLD;
 use crate::zenoh_client::HistoryEntry;
 

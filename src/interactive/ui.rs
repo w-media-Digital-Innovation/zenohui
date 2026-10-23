@@ -10,6 +10,9 @@ pub enum ElementInFocus {
     TopicSearch,
     Payload,
     HistoryTable,
+    RoutersTable,
+    PeersTable,
+    Settings,
     CleanPopup(String),
 }
 

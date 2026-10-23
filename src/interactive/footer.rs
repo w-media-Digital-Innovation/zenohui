@@ -1,8 +1,8 @@
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
-use ratatui::Frame;
 
 use crate::interactive::{App, ElementInFocus};
 use crate::zenoh_client::SessionInfo;
@@ -27,6 +27,7 @@ impl Footer {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn draw(&self, frame: &mut Frame, area: Rect, app: &App) {
         let mut keys = Vec::new();
 
@@ -61,6 +62,9 @@ impl Footer {
                 } else {
                     // Changing somewhere is pointless currently
                 }
+                add!("1/2/3/4", "Tabs");
+                add!("[", "Prev tab");
+                add!("]", "Next tab");
             }
             ElementInFocus::TopicSearch => {
                 add!("↑", "Before");
@@ -85,10 +89,32 @@ impl Footer {
                 } else {
                     add!("Tab", "Switch to Topics");
                 }
+                add!("1/2/3/4", "Tabs");
+                add!("[", "Prev tab");
+                add!("]", "Next tab");
             }
             ElementInFocus::HistoryTable => {
                 add!("q", "Quit");
                 add!("Tab", "Switch to Topics");
+                add!("1/2/3/4", "Tabs");
+                add!("[", "Prev tab");
+                add!("]", "Next tab");
+            }
+            ElementInFocus::RoutersTable | ElementInFocus::PeersTable => {
+                add!("q", "Quit");
+                add!("↑/↓", "Select");
+                add!("PgUp/PgDn", "Page");
+                add!("Home/End", "First/Last");
+                add!("1/2/3/4", "Tabs");
+                add!("[", "Prev tab");
+                add!("]", "Next tab");
+            }
+            ElementInFocus::Settings => {
+                add!("Enter", "Edit/toggle");
+                add!("F5", "Connect");
+                add!("F2/F3", "Save/load");
+                add!("Esc", "End edit");
+                add!("1/2/3/4", "Tabs");
             }
             ElementInFocus::CleanPopup(_) => {
                 add!("Enter", "Delete key tree");
@@ -96,16 +122,19 @@ impl Footer {
             }
         }
         let keys = Line::from(keys);
+        let keys_width = keys.width();
+
+        frame.render_widget(Paragraph::new(keys), area);
 
         #[allow(clippy::cast_possible_truncation)]
         if matches!(app.focus, ElementInFocus::TopicSearch) {
-            let x = area.left().saturating_add(keys.width() as u16);
+            let x = area.left().saturating_add(keys_width as u16);
             frame.set_cursor(x, area.y);
         }
 
         // Show version / session info when enough space
         {
-            let remaining = (area.width as usize).saturating_sub(keys.width());
+            let remaining = (area.width as usize).saturating_sub(keys_width);
             let text = if remaining > self.full_info.len() {
                 Some(&*self.full_info)
             } else if remaining > self.session.len() {

@@ -22,10 +22,10 @@ fn main() -> anyhow::Result<()> {
             clean::clean(session.as_ref(), &keyexpr, dry_run)?;
         }
         Some(cli::Subcommands::Log { keyexpr, json }) => {
-            log::show(Arc::clone(&session), keyexpr, json)?;
+            log::show(&session, keyexpr, json)?;
         }
         Some(cli::Subcommands::ReadOne { keyexpr, pretty }) => {
-            read_one::show(Arc::clone(&session), keyexpr, pretty)?;
+            read_one::show(&session, keyexpr, pretty)?;
         }
         Some(cli::Subcommands::Publish { keyexpr, payload }) => {
             let payload = payload.map_or_else(

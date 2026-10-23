@@ -6,7 +6,7 @@ pub enum Subcommands {
     /// Delete values for a key expression.
     ///
     /// This sends an empty PUT followed by a DELETE for the key expression.
-    #[command(visible_alias = "c", visible_alias = "clean")]
+    #[command(visible_alias = "c")]
     Clean {
         /// Key expression which gets cleaned.
         ///
@@ -119,7 +119,7 @@ pub struct Cli {
 }
 
 /// Arguments related to the Zenoh connection.
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, PartialEq, Eq, Args)]
 pub struct ZenohConnection {
     /// Explicit peers to connect to, e.g. tcp/127.0.0.1:7447
     #[arg(
@@ -141,18 +141,23 @@ pub struct ZenohConnection {
     )]
     pub listen: Vec<String>,
 
+    /// Disable local multicast discovery
+    #[arg(long, global = true)]
+    pub no_multicast: bool,
+
     /// Zenoh session mode
     #[arg(
         long,
         env = "ZENOHUI_MODE",
         value_enum,
-        default_value_t = SessionMode::Client,
+        default_value_t = SessionMode::Peer,
         global = true,
     )]
     pub mode: SessionMode,
 }
 
 impl ZenohConnection {
+    #[must_use]
     pub fn describe(&self) -> String {
         let mut parts = vec![format!("mode={}", self.mode.as_str())];
         if !self.peer.is_empty() {
@@ -165,7 +170,7 @@ impl ZenohConnection {
     }
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SessionMode {
     Client,
     Peer,
@@ -173,6 +178,7 @@ pub enum SessionMode {
 }
 
 impl SessionMode {
+    #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Client => "client",

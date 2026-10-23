@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 use zenoh::handlers::fifo::FifoChannel;
@@ -7,11 +7,12 @@ use zenoh::{Session, Wait};
 
 use crate::payload::Payload;
 
-pub fn show(session: Arc<Session>, keyexprs: Vec<String>, pretty: bool) -> anyhow::Result<()> {
+#[allow(clippy::unnecessary_wraps)]
+pub fn show(session: &Arc<Session>, keyexprs: Vec<String>, pretty: bool) -> anyhow::Result<()> {
     let (tx, rx) = mpsc::channel();
 
     for keyexpr in keyexprs {
-        let session = Arc::clone(&session);
+        let session = Arc::clone(session);
         let tx = tx.clone();
         thread::Builder::new()
             .name(format!("zenoh read-one {keyexpr}"))
@@ -30,7 +31,7 @@ pub fn show(session: Arc<Session>, keyexprs: Vec<String>, pretty: bool) -> anyho
                 loop {
                     match subscriber.recv() {
                         Ok(sample) => {
-                        if sample.kind() == SampleKind::Delete {
+                            if sample.kind() == SampleKind::Delete {
                                 continue;
                             }
                             if tx.send(sample).is_err() {
