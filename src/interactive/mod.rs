@@ -101,16 +101,19 @@ pub fn show(
     session_info: &SessionInfo,
     subscribe_keyexpr: Vec<String>,
     payload_size_limit: usize,
+    history_limit: usize,
 ) -> anyhow::Result<()> {
     let zenoh_thread = zenoh_thread::ZenohThread::new(
         session,
         &subscribe_keyexpr,
         payload_size_limit,
+        history_limit,
         session_info.config.clone(),
     )?;
     let mut app = App::new(session_info, zenoh_thread);
     app.subscribe_keyexpr = subscribe_keyexpr;
     app.payload_size_limit = payload_size_limit;
+    app.history_limit = history_limit;
 
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
@@ -195,6 +198,7 @@ pub struct App {
         Option<std::sync::mpsc::Receiver<anyhow::Result<(SessionInfo, zenoh_thread::ZenohThread)>>>,
     subscribe_keyexpr: Vec<String>,
     payload_size_limit: usize,
+    history_limit: usize,
     details: details::Details,
     focus: ElementInFocus,
     footer: footer::Footer,
@@ -211,6 +215,7 @@ impl App {
             reconnect: None,
             subscribe_keyexpr: vec!["**".into()],
             payload_size_limit: 8000,
+            history_limit: 1000,
             details: details::Details::default(),
             focus: ElementInFocus::TopicOverview,
             footer: footer::Footer::new(session_info),
@@ -660,6 +665,7 @@ impl App {
                     let connection = self.settings.connection();
                     let keys = self.subscribe_keyexpr.clone();
                     let limit = self.payload_size_limit;
+                    let history_limit = self.history_limit;
                     let (tx, rx) = std::sync::mpsc::channel();
                     std::thread::spawn(move || {
                         let result =
@@ -668,6 +674,7 @@ impl App {
                                     Arc::new(session),
                                     &keys,
                                     limit,
+                                    history_limit,
                                     info.config.clone(),
                                 )?;
                                 Ok((info, worker))

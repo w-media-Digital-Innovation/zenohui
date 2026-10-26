@@ -26,6 +26,31 @@ zenohui --peer "tcp/127.0.0.1:7447" "demo/**"
 zenohui --help
 ```
 
+### Bounded live history
+
+The interactive UI keeps the newest **1,000 messages per topic** by default.
+Use `--history-limit 200` (or `ZENOHUI_HISTORY_LIMIT=200`) for a shorter window.
+The maximum configurable per-topic limit is 10,000.
+
+Across all topics, history is limited to **10,000 entries** and a **64 MiB
+estimated retained-payload budget**, including parsed JSON/MessagePack data.
+This is not a limit on the whole process's RSS: transport buffers, UI data,
+allocator overhead and topic metadata are separate. Under global pressure the
+largest history is trimmed first; per-topic trimming removes the oldest entry.
+The Topics title displays retained and discarded entries.
+
+Topic metadata is capped at 1,000 distinct topics, with key expressions up to
+4,096 bytes and 64 segments. New topics beyond these limits are ignored and
+counted as discarded. Existing tracked topics continue updating. Reconnecting
+starts a fresh cache.
+
+Incoming payloads are copied only up to the configured size limit plus one byte
+before entering a bounded processing queue (32 entries). Each subscriber's
+Zenoh FIFO is limited to 16 samples. `--payload-size-limit` defaults to 8,000
+bytes and accepts 1 to 1,048,576 bytes. Larger samples retain their original
+size metadata but only their prefix is stored. The viewer is a bounded live
+window, not a persistent recorder.
+
 ### Plot values from JSON payloads
 
 Select a topic and press **Tab** to focus the JSON payload in the upper-right

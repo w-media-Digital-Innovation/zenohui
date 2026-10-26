@@ -20,6 +20,49 @@ pub enum Payload {
 }
 
 impl Payload {
+    /// Conservative accounting for retained payload data, including parsed trees.
+    pub fn estimated_size(&self) -> usize {
+        fn json(value: &serde_json::Value) -> usize {
+            match value {
+                serde_json::Value::String(s) => s.capacity(),
+                serde_json::Value::Array(values) => {
+                    values.capacity() * std::mem::size_of::<serde_json::Value>()
+                        + values.iter().map(json).sum::<usize>()
+                }
+                serde_json::Value::Object(values) => values
+                    .iter()
+                    .map(|(key, value)| key.capacity() + 128 + json(value))
+                    .sum(),
+                _ => 0,
+            }
+        }
+        fn messagepack(value: &rmpv::Value) -> usize {
+            match value {
+                rmpv::Value::String(s) => s.as_bytes().len(),
+                rmpv::Value::Binary(bytes) | rmpv::Value::Ext(_, bytes) => bytes.capacity(),
+                rmpv::Value::Array(values) => {
+                    values.capacity() * std::mem::size_of::<rmpv::Value>()
+                        + values.iter().map(messagepack).sum::<usize>()
+                }
+                rmpv::Value::Map(values) => {
+                    values.capacity() * std::mem::size_of::<(rmpv::Value, rmpv::Value)>()
+                        + values
+                            .iter()
+                            .map(|(key, value)| messagepack(key) + messagepack(value))
+                            .sum::<usize>()
+                }
+                _ => 0,
+            }
+        }
+        std::mem::size_of::<Self>()
+            + match self {
+                Self::String(s) => s.len(),
+                Self::Binary(bytes) => bytes.len(),
+                Self::Json(value) => json(value),
+                Self::MessagePack(value) => messagepack(value),
+            }
+    }
+
     pub fn truncated(mut payload: Vec<u8>, limit: usize) -> Self {
         if payload.len() > limit {
             payload.truncate(limit);

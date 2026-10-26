@@ -110,8 +110,13 @@ pub struct Cli {
         env = "ZENOHUI_PAYLOAD_SIZE_LIMIT",
         value_hint = ValueHint::Other,
         default_value_t = 8_000,
+        value_parser = parse_payload_limit,
     )]
     pub payload_size_limit: usize,
+
+    /// Maximum retained messages per topic (oldest entries are removed).
+    #[arg(long, env = "ZENOHUI_HISTORY_LIMIT", default_value_t = 1000, value_parser = clap::value_parser!(u16).range(1..=10_000))]
+    pub history_limit: u16,
 
     // Keep at the end to not mix the next_help_heading with other options
     #[command(flatten, next_help_heading = "Zenoh Connection")]
@@ -192,4 +197,35 @@ impl SessionMode {
 fn verify() {
     use clap::CommandFactory;
     Cli::command().debug_assert();
+}
+
+fn parse_payload_limit(value: &str) -> Result<usize, String> {
+    let limit = value.parse::<usize>().map_err(|err| err.to_string())?;
+    if (1..=1_048_576).contains(&limit) {
+        Ok(limit)
+    } else {
+        Err("payload size limit must be between 1 and 1048576 bytes".into())
+    }
+}
+
+#[test]
+fn retention_options_reject_unbounded_or_excessive_limits() {
+    for args in [
+        ["zenohui", "--history-limit", "0"],
+        ["zenohui", "--history-limit", "10001"],
+        ["zenohui", "--payload-size-limit", "0"],
+        ["zenohui", "--payload-size-limit", "1048577"],
+    ] {
+        assert!(Cli::try_parse_from(args).is_err());
+    }
+    let cli = Cli::try_parse_from([
+        "zenohui",
+        "--history-limit",
+        "200",
+        "--payload-size-limit",
+        "8000",
+    ])
+    .unwrap();
+    assert_eq!(cli.history_limit, 200);
+    assert_eq!(cli.payload_size_limit, 8000);
 }

@@ -25,7 +25,10 @@ impl TopicOverview {
 
     pub fn draw(&mut self, frame: &mut Frame, area: Rect, history: &ZenohHistory, has_focus: bool) {
         let (topic_amount, message_amount, tree_items) = history.to_tree_items();
-        let title = format!("Topics ({topic_amount}, {message_amount} messages)");
+        let title = format!(
+            "Topics ({topic_amount}, {message_amount} kept, {} discarded)",
+            history.discarded
+        );
         let focus_color = focus_color(has_focus);
         let widget = Tree::new(&tree_items)
             .unwrap()

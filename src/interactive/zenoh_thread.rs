@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard, mpsc};
 use std::thread;
@@ -17,6 +18,15 @@ type ConnectionErrorArc = Arc<RwLock<Option<String>>>;
 type HistoryArc = Arc<RwLock<ZenohHistory>>;
 type ScoutArc = Arc<RwLock<ScoutCache>>;
 
+fn limited_payload(bytes: &zenoh::bytes::ZBytes, limit: usize) -> std::io::Result<Payload> {
+    let mut data = Vec::new();
+    bytes
+        .reader()
+        .take(u64::try_from(limit.saturating_add(1)).unwrap_or(u64::MAX))
+        .read_to_end(&mut data)?;
+    Ok(Payload::truncated(data, limit))
+}
+
 pub struct ZenohThread {
     workers: Vec<thread::JoinHandle<()>>,
     stop: Arc<AtomicBool>,
@@ -32,13 +42,14 @@ impl ZenohThread {
         session: Arc<Session>,
         subscribe_keyexpr: &[String],
         payload_size_limit: usize,
+        history_limit: usize,
         scout_config: Config,
     ) -> anyhow::Result<Self> {
         let stop = Arc::new(AtomicBool::new(false));
         let connection_err = Arc::new(RwLock::new(None));
-        let history = Arc::new(RwLock::new(ZenohHistory::new()));
+        let history = Arc::new(RwLock::new(ZenohHistory::with_limit(history_limit)));
         let scouting = Arc::new(RwLock::new(ScoutCache::default()));
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::sync_channel(32);
 
         let mut workers = Vec::new();
         let subscribers = subscribe_keyexpr
@@ -46,7 +57,7 @@ impl ZenohThread {
             .map(|keyexpr| {
                 let subscriber = session
                     .declare_subscriber(keyexpr.as_str())
-                    .with(FifoChannel::default())
+                    .with(FifoChannel::new(16))
                     .wait()
                     .map_err(|err| anyhow::anyhow!("Subscription failed: {err}"))?;
                 Ok((keyexpr.clone(), subscriber))
@@ -63,8 +74,37 @@ impl ZenohThread {
                         while !stop.load(Ordering::Relaxed) {
                             match subscriber.recv_timeout(Duration::from_millis(250)) {
                                 Ok(Some(sample)) => {
-                                    if tx.send(sample).is_err() {
-                                        break;
+                                    let size = sample.payload().len();
+                                    let Ok(payload) =
+                                        limited_payload(sample.payload(), payload_size_limit)
+                                    else {
+                                        continue;
+                                    };
+                                    let entry = HistoryEntry {
+                                        kind: sample.kind(),
+                                        time: if sample.kind() == SampleKind::Delete {
+                                            Time::Unknown
+                                        } else {
+                                            Time::new_now()
+                                        },
+                                        payload_size: size,
+                                        payload,
+                                    };
+                                    let mut pending =
+                                        (sample.key_expr().as_str().to_owned(), entry);
+                                    drop(sample);
+                                    loop {
+                                        match tx.try_send(pending) {
+                                            Ok(()) => break,
+                                            Err(mpsc::TrySendError::Full(item)) => {
+                                                if stop.load(Ordering::Relaxed) {
+                                                    return;
+                                                }
+                                                pending = item;
+                                                thread::sleep(Duration::from_millis(5));
+                                            }
+                                            Err(mpsc::TrySendError::Disconnected(_)) => return,
+                                        }
                                     }
                                 }
                                 Ok(None) => {}
@@ -88,23 +128,9 @@ impl ZenohThread {
                 thread::Builder::new()
                     .name("zenoh history".to_owned())
                     .spawn(move || {
-                        for sample in rx {
+                        for (keyexpr, entry) in rx {
                             *connection_err.write().unwrap() = None;
-                            let payload = sample.payload().to_bytes().to_vec();
-                            let time = if sample.kind() == SampleKind::Delete {
-                                Time::Unknown
-                            } else {
-                                Time::new_now()
-                            };
-                            history.write().unwrap().add(
-                                sample.key_expr().as_str().to_owned(),
-                                HistoryEntry {
-                                    kind: sample.kind(),
-                                    time,
-                                    payload_size: payload.len(),
-                                    payload: Payload::truncated(payload, payload_size_limit),
-                                },
-                            );
+                            history.write().unwrap().add(keyexpr, entry);
                         }
                     })
                     .expect("should be able to spawn a thread"),
@@ -231,6 +257,25 @@ mod tests {
     use crate::cli::{SessionMode, ZenohConnection};
 
     #[test]
+    fn oversized_payload_is_truncated_before_it_enters_the_queue() {
+        let bytes = zenoh::bytes::ZBytes::from(vec![b'x'; 1024 * 1024]);
+        assert_eq!(
+            limited_payload(&bytes, 8).unwrap(),
+            Payload::String("xxxxxxxx".into())
+        );
+        // A valid JSON prefix of an oversized message must stay a truncated string.
+        let json = zenoh::bytes::ZBytes::from(b"1234 ".to_vec());
+        assert_eq!(
+            limited_payload(&json, 4).unwrap(),
+            Payload::String("1234".into())
+        );
+        assert!(matches!(
+            limited_payload(&json, 5).unwrap(),
+            Payload::Json(_)
+        ));
+    }
+
+    #[test]
     #[ignore = "requires ZENOHUI_TEST_ROUTER and network access"]
     fn remote_router_is_listed_without_multicast() {
         let endpoint = std::env::var("ZENOHUI_TEST_ROUTER").expect("set ZENOHUI_TEST_ROUTER");
@@ -275,6 +320,7 @@ mod tests {
             Arc::clone(&old_session),
             &["zenohui/test/**".into()],
             8000,
+            1000,
             info.config.clone(),
         )
         .unwrap();

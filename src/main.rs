@@ -47,6 +47,7 @@ fn main() -> anyhow::Result<()> {
                 &session_info,
                 matches.keyexpr,
                 matches.payload_size_limit,
+                usize::from(matches.history_limit),
             )?;
         }
     }
